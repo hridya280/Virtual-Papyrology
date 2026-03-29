@@ -1,0 +1,15 @@
+# Vesuvius Challenge – Surface Detection
+
+## Overview
+This project predicts the surface (displacement map) of carbonized scrolls using 3D CT scan data.
+
+## Approach
+- Model: (write what you used — CNN / U-Net etc.)
+- Input: stacked CT slices
+- Output: surface height map
+
+## Files
+- solution.ipynb → main notebook
+
+## Notes
+Dataset is from Kaggle and not included due to size.
