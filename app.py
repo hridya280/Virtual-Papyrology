@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+from db import log_inference, fetch_inference_history
 
 st.set_page_config(
     page_title="Vesuvius Surface Detection",
@@ -558,6 +559,7 @@ elif page == "Inference & Results":
 
         st.session_state.data["pred_prob"] = pred_prob
         st.session_state.data["pred_mask"] = pred_mask
+        st.session_state.data["inference_model_file"] = model_file.name
         st.success("Inference complete!")
     else:
         pred_prob = st.session_state.data["pred_prob"]
@@ -720,6 +722,18 @@ elif page == "Metrics & Analysis":
     # Compute metrics
     metrics = compute_metrics(gt_mask, pred_mask)
 
+    # Log to MongoDB if this was a real inference run (not synthetic demo)
+    if st.session_state.data.get("inference_model_file"):
+        fg = int(pred_mask.sum())
+        log_inference(
+            model_filename=st.session_state.data["inference_model_file"],
+            metrics=metrics,
+            fg_voxels=fg,
+            mean_prob=float(pred_prob.mean()),
+        )
+        # Clear flag so we only log once per run
+        st.session_state.data["inference_model_file"] = None
+
     st.markdown("### Segmentation Metrics")
 
     m_cols = st.columns(4)
@@ -802,6 +816,29 @@ elif page == "Metrics & Analysis":
     else:
         fig_3d = create_3d_surface_plot(pred_mask, downsample=2, title="Predicted Surface")
         st.plotly_chart(fig_3d, use_container_width=True)
+
+    # Inference history from MongoDB
+    st.markdown("---")
+    st.markdown("### Inference History")
+    history = fetch_inference_history(limit=10)
+    if history:
+        import pandas as pd
+        df = pd.DataFrame(history)
+        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.strftime("%Y-%m-%d %H:%M UTC")
+        df = df.rename(columns={
+            "timestamp": "Time",
+            "model_file": "Model File",
+            "dice_score": "Dice",
+            "iou": "IoU",
+            "precision": "Precision",
+            "recall": "Recall",
+            "fg_voxels": "FG Voxels",
+            "mean_prob": "Mean Prob",
+            "threshold": "Threshold",
+        })
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("No inference history yet. Run real inference to populate the log.")
 
     # Comparison slice view
     with st.expander("Error Analysis — Per-Slice Comparison"):

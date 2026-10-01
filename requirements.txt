@@ -7,3 +7,5 @@ tifffile
 Pillow
 scipy
 scikit-image
+pymongo[srv]
+pandas
